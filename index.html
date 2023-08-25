@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<body>
+<style>
+  body {
+    margin: 0;
+  }
+</style>
+<canvas></canvas>
+
+<script
+  src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"
+  integrity="sha512-16esztaSRplJROstbIIdwX3N97V1+pZvV33ABoG1H2OyTttBxEGkTsoIVsiP1iaTtM8b3+hu2kB6pQ4Clr5yug=="
+  crossorigin="anonymous"
+  referrerpolicy="no-referrer"
+></script>
+<script>
+// code required to setup canvas
+const canvas = document.querySelector('canvas')
+const c = canvas.getContext('2d')
+
+canvas.width = innerWidth
+canvas.height = innerHeight
+
+// class design
+class Ball {
+  constructor({ position, velocity, angle, distance, color }) {
+    this.position = position
+    this.velocity = velocity
+    this.angle = angle
+    this.distance = distance
+
+    // step 4 - animate each ball's distance from center of canvas
+    // here gsap animates the distance down to 50, then repeats the process forever.
+    // Distance is used within update() to determine ring's overall radius
+    gsap.to(this, {
+      distance: -50,
+      yoyo: true,
+      repeat: -1,
+      duration: 1,
+      ease: 'power4.inOut',
+    })
+
+    this.color = color
+  }
+
+  draw() {
+    c.fillStyle = this.color
+    c.beginPath()
+    c.arc(this.position.x, this.position.y, 10, 0, Math.PI * 2, false)
+    c.closePath()
+    c.fill()
+  }
+
+  update() {
+    this.draw()
+    this.angle += 0.01
+    
+     // step 3 - animate ring clockwise by incrementing angle and setting new x and y positions
+    this.position.x = canvas.width / 2 + Math.cos(this.angle) * this.distance
+    this.position.y = canvas.height / 2 + Math.sin(this.angle) * this.distance
+  }
+}
+
+// implementation
+const balls = []
+const count = 20
+const angleIncrement = (Math.PI * 2) / count // step 2 - determine angle that creates ring
+const hueIncrement = 360 / count // step 6 - Hue takes a value of 0 - 360, we want to experience the full spectrum, so we divide the max value by the count of balls associated with each ring
+
+// step 5 - generate multiple rings but at varied distances
+for (let j = 0; j < 10; j++) {
+  const distance = j * 30 // step 5 - determine how spaced out each ring should be
+  
+  // step 1 - create balls (used 20 in the end here)
+  for (let i = 0; i < count; i++) {
+    const angle = angleIncrement * i // step 2 - give each ball a different angle to create ring
+    
+    // step 1 - pushing balls into array that gets rendered
+    balls.push(
+      new Ball({
+        position: {
+          x: canvas.width / 2 + Math.cos(angle) * j,
+          y: canvas.height / 2 + Math.sin(angle) * j,
+        },
+        velocity: {
+          x: 0,
+          y: 0,
+        },
+        angle, // step 3 - assign angle to ball class so we can rotate ring
+        distance, // step 5 - assign new generated distance to each ball (creates multiple rings)
+        color: `hsl(${hueIncrement * i}, 100%, 50%)`, // step 6 - generate an HSL value based on angle associated with each ball
+      }),
+    )
+  }
+}
+
+function animate() {
+  requestAnimationFrame(animate)
+  c.fillStyle = 'rgba(0,0,0,0.1)'
+  c.fillRect(0, 0, canvas.width, canvas.height)
+  balls.forEach((ball) => {
+    ball.update()
+  })
+}
+
+animate()
+
+</script>
+
+
+</body>
+</html>
