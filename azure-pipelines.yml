@@ -1,0 +1,63 @@
+trigger:
+- main
+
+pool:
+  vmImage: 'ubuntu-latest'
+parameters:
+    - name: acrName
+      type: string
+      displayName: 'ACR Name'
+      default: 'heyaks0403'
+
+jobs:
+- job: BuildAndPushImageToACR
+  timeoutInMinutes: 2
+  displayName: 'Build, Push Docker Image to ACR'
+      
+  steps:
+  - task: SonarCloudPrepare@1
+    inputs:
+       SonarCloud: 'Sonar-Cloud-Conn'
+       organization: 'heymegha'
+       scannerMode: 'CLI'
+       configMode: 'manual'
+       cliProjectKey: 'heymegha_sonar-test-project'
+       cliProjectName: 'Sonar-test-Project'
+       cliSources: '.'
+  
+  - task: SonarCloudAnalyze@1
+    inputs:
+      jdkversion: 'JAVA_HOME_17_X64'
+
+  - task: SonarCloudPublish@1
+    inputs:
+      pollingTimeoutSec: '300'
+  
+  - task: Docker@2
+    inputs:
+      containerRegistry: 'docker-svc-con'
+      repository: 'python-app'
+      command: 'buildAndPush'
+      Dockerfile: 'Dockerfile'
+      tags: |
+        $(Build.BuildId)
+        Latest
+
+  - task: Bash@3
+    inputs:
+      targetType: 'inline'
+      script: |
+        echo "Substituting parameters in deployment.yaml..."
+        sed -i "s|__IMAGE_NAME__|${{ parameters.acrName }}|g" deployment.yaml
+        sed -i "s|__BUILD_ID__|$(Build.BuildId)|g" deployment.yaml
+    displayName: 'Substitute Parameters in deployment.yaml'
+
+  - task: KubernetesManifest@1
+    inputs:
+      action: 'deploy'
+      connectionType: 'azureResourceManager'
+      azureSubscriptionConnection: 'Free Trial(3932e3d7-3652-42d1-8f03-9eb4735ad5aa)'
+      azureResourceGroup: 'AKS-ACR-Rg'
+      kubernetesCluster: 'aks-0403'
+      namespace: 'default'
+      manifests: 'deployment.yaml'
