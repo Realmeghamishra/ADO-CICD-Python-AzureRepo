@@ -5,7 +5,7 @@ FROM python:3.8-slim
 WORKDIR /app
 
 # Copy the local files into the container's working directory
-COPY src/. .
+COPY . .
 
 EXPOSE 80
 
