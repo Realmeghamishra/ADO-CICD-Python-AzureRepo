@@ -12,7 +12,7 @@ parameters:
 jobs:
 - job: BuildAndPushImageToACR
   timeoutInMinutes: 2
-  displayName: 'Build, Push Docker Image to ACR'
+  displayName: 'Build Pyapp Docker Image and Deploy to AKS and Exposing through LB '
       
   steps:
   # - task: SonarCloudPrepare@1
