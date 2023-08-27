@@ -1,19 +1,63 @@
-# Starter pipeline
-# Start with a minimal pipeline that you can customize to build and deploy your code.
-# Add steps that build, run tests, deploy, and more:
-# https://aka.ms/yaml
-
 trigger:
 - main
 
 pool:
-  vmImage: ubuntu-latest
+  vmImage: 'ubuntu-latest'
+parameters:
+    - name: acrName
+      type: string
+      displayName: 'ACR Name'
+      default: 'helloacr0403'
 
-steps:
-- script: echo Hello, world!
-  displayName: 'Run a one-line script'
+jobs:
+- job: BuildAndPushImageToACR
+  timeoutInMinutes: 2
+  displayName: 'Build, Push Docker Image to ACR'
+      
+  steps:
+  # - task: SonarCloudPrepare@1
+  #   inputs:
+  #      SonarCloud: 'Sonar-Cloud-Conn'
+  #      organization: 'heymegha'
+  #      scannerMode: 'CLI'
+  #      configMode: 'manual'
+  #      cliProjectKey: 'heymegha_sonar-test-project'
+  #      cliProjectName: 'Sonar-test-Project'
+  #      cliSources: '.'
+  
+  # - task: SonarCloudAnalyze@1
+  #   inputs:
+  #     jdkversion: 'JAVA_HOME_17_X64'
 
-- script: |
-    echo Add other tasks to build, test, and deploy your project.
-    echo See https://aka.ms/yaml
-  displayName: 'Run a multi-line script'
+  # - task: SonarCloudPublish@1
+  #   inputs:
+  #     pollingTimeoutSec: '300'
+  
+  - task: Docker@2
+    inputs:
+      containerRegistry: 'acr-svc-conn'
+      repository: 'python-app'
+      command: 'buildAndPush'
+      Dockerfile: 'Dockerfile'
+      tags: |
+        $(Build.BuildId)
+        Latest
+
+  - task: Bash@3
+    inputs:
+      targetType: 'inline'
+      script: |
+        echo "Substituting parameters in deployment.yaml..."
+        sed -i "s|__IMAGE_NAME__|${{ parameters.acrName }}|g" deployment.yaml
+        sed -i "s|__BUILD_ID__|$(Build.BuildId)|g" deployment.yaml
+    displayName: 'Substitute Parameters in deployment.yaml'
+
+  - task: KubernetesManifest@1
+    inputs:
+      action: 'deploy'
+      connectionType: 'azureResourceManager'
+      azureSubscriptionConnection: 'Hellovip.in(15b6ce8f-b9ba-45be-9ca9-4337ad8c7f8d)'
+      azureResourceGroup: 'AKS-ACR-Rg'
+      kubernetesCluster: 'helloaks0403'
+      namespace: 'default'
+      manifests: 'deployment.yaml'
